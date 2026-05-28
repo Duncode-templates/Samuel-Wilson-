@@ -1,0 +1,9 @@
+{
+	"appId": "com.comicreader.app",
+	"appName": "Comic Reader",
+	"webDir": "dist",
+	"packageClassList": [
+		"FilesystemPlugin",
+		"LocalNotificationsPlugin"
+	]
+}
