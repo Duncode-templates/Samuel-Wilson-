@@ -23,7 +23,9 @@ import { Comic, Chapter } from '../types';
 import { useChapters } from '../hooks/useChapters';
 import { trackActivity, updateReadingProgress, getDownloads } from '../lib/storage';
 import { useDownloadStatus } from '../hooks/useDownloadStatus';
+import { subscribeToComments } from '../lib/comments';
 import Skeleton from './Skeleton';
+import CommentSection from './CommentSection';
 
 interface ComicReaderProps {
   comic: Comic;
@@ -68,9 +70,8 @@ const ReaderImage: React.FC<{ src: string; index: number; onRetry: () => void }>
         alt={`Page ${index + 1}`}
         className={`w-full h-auto object-contain block m-0 p-0 transition-opacity duration-500 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
         referrerPolicy="no-referrer"
-        loading="eager"
-        // @ts-ignore
-        fetchPriority="high"
+        loading="lazy"
+        decoding="async"
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
       />
@@ -84,6 +85,7 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
   const [selectedChapterIndex, setSelectedChapterIndex] = useState(initialIndex);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showUI, setShowUI] = useState(true);
   const [isNightMode, setIsNightMode] = useState(true);
@@ -92,6 +94,7 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
   const [currentPage, setCurrentPage] = useState(1);
   const [jumpNotification, setJumpNotification] = useState<string | null>(null);
   const [offlinePages, setOfflinePages] = useState<Record<string, string[]>>({});
+  const [commentCount, setCommentCount] = useState(0);
   
   const scrollContainerRef = useRef<HTMLElement>(null);
   const autoScrollRef = useRef<number | null>(null);
@@ -182,6 +185,30 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
     }
     return [];
   }, [currentChapter, offlinePages]);
+
+  useEffect(() => {
+    if (currentChapter?.id) {
+      // 1. Try to load from cache immediately
+      const cached = localStorage.getItem(`comment_count_${currentChapter.id}`);
+      if (cached) {
+        setCommentCount(parseInt(cached));
+      }
+
+      // 2. Fetch fresh count from server quickly
+      import('../lib/comments').then(m => {
+        m.getCommentCount(currentChapter.id).then(count => {
+          setCommentCount(count);
+          localStorage.setItem(`comment_count_${currentChapter.id}`, count.toString());
+        });
+      });
+
+      // 3. Subscribe for real-time updates
+      return subscribeToComments(currentChapter.id, (comments) => {
+        setCommentCount(comments.length);
+        localStorage.setItem(`comment_count_${currentChapter.id}`, comments.length.toString());
+      });
+    }
+  }, [currentChapter?.id]);
 
   // Scroll tracking to update current page
   useEffect(() => {
@@ -304,14 +331,14 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className={`fixed inset-0 z-[100] flex flex-col ${isNightMode ? 'bg-zinc-950' : 'bg-zinc-100'} text-white transition-colors duration-300`}
+      className={`fixed inset-0 z-[100] flex flex-col ${isNightMode ? 'bg-[#171717]' : 'bg-zinc-100'} text-white transition-colors duration-300`}
     >
       {/* Header */}
       <motion.header 
         initial={false}
         animate={{ y: showUI ? 0 : -100 }}
         transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-        className={`fixed top-0 left-0 right-0 flex items-center justify-between px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 ${isNightMode ? 'bg-zinc-900/90' : 'bg-white/90'} backdrop-blur-md z-[110] border-b border-white/[0.05]`}
+        className={`fixed top-0 left-0 right-0 flex items-center justify-between px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 ${isNightMode ? 'bg-[#171717]/90' : 'bg-white/90'} backdrop-blur-md z-[110] border-b border-white/[0.05]`}
       >
         <button
           onClick={onClose}
@@ -353,7 +380,7 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className={`absolute top-0 bottom-0 left-0 w-[85%] max-w-sm ${isNightMode ? 'bg-[#121214]' : 'bg-white'} border-r border-white/5 z-[120] flex flex-col shadow-2xl overflow-hidden`}
+              className={`absolute top-0 bottom-0 left-0 w-[85%] max-w-sm ${isNightMode ? 'bg-[#171717]' : 'bg-white'} border-r border-white/5 z-[120] flex flex-col shadow-2xl overflow-hidden`}
             >
               {/* Drawer Header */}
               <div className="pt-[calc(1.5rem+env(safe-area-inset-top))] pb-4 px-6 border-b border-white/10">
@@ -432,7 +459,7 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
       <main 
         ref={scrollContainerRef}
         onClick={toggleUI}
-        className="flex-1 overflow-y-auto bg-black scrollbar-hide relative"
+        className="flex-1 overflow-y-auto bg-[#171717] scrollbar-hide relative"
       >
         <div className="max-w-3xl mx-auto flex flex-col relative">
           {isNightMode && (
@@ -494,7 +521,7 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
         initial={false}
         animate={{ y: showUI ? 0 : 250 }}
         transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-        className="fixed bottom-0 left-0 right-0 z-[110] flex flex-col bg-zinc-900/95 backdrop-blur-xl border-t border-white/[0.05] pb-[env(safe-area-inset-bottom)]"
+        className="fixed bottom-0 left-0 right-0 z-[110] flex flex-col bg-[#171717]/95 backdrop-blur-xl border-t border-white/[0.05] pb-[env(safe-area-inset-bottom)]"
       >
         {/* Slider & Chapter Progress */}
         <div className="px-6 py-2.5 space-y-2">
@@ -561,12 +588,17 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
             </span>
           </button>
 
-          <button className="flex flex-col items-center gap-0.5 group relative">
+          <button 
+            onClick={() => setShowComments(true)}
+            className="flex flex-col items-center gap-0.5 group relative"
+          >
             <MessageSquare size={18} className="text-white group-hover:text-blue-500 transition-colors" />
             <span className="text-[7px] font-black text-white group-hover:text-blue-500 uppercase tracking-tighter">Comments</span>
-            <div className="absolute -top-1 -right-1 bg-white text-zinc-900 text-[5px] font-black w-2.5 h-2.5 flex items-center justify-center rounded-full">
-              3
-            </div>
+            {commentCount > 0 && (
+              <div className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-[8px] font-black px-1 min-w-[14px] h-[14px] rounded-full flex items-center justify-center border border-[#171717] shadow-lg">
+                {commentCount}
+              </div>
+            )}
           </button>
 
           <button 
@@ -594,7 +626,7 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-sm bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-sm bg-[#171717] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
             >
               <div className="p-6 border-b border-white/5 flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-widest text-white">Reader Settings</h3>
@@ -683,6 +715,16 @@ export default function ComicReader({ comic, initialIndex = 0, initialChapters =
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showComments && currentChapter && (
+          <CommentSection 
+            chapterId={currentChapter.id} 
+            novelId={comic.id} 
+            onClose={() => setShowComments(false)} 
+          />
         )}
       </AnimatePresence>
 

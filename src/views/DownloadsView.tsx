@@ -63,7 +63,7 @@ const ComicChaptersList: React.FC<{
 
   return (
     <div className="flex flex-col animate-in slide-in-from-right duration-300">
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 h-14 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 h-14 border-b border-white/5 bg-[#171717]/80 backdrop-blur-xl">
         <button onClick={onBack} className="p-2 -ml-2 text-zinc-400 hover:text-white">
           <ChevronRight className="rotate-180" size={24} />
         </button>
@@ -243,7 +243,7 @@ const DownloadsView: React.FC<DownloadsViewProps> = ({ onSelectComic }) => {
 
   return (
     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 h-14 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center px-4 h-14 border-b border-white/5 bg-[#171717]/80 backdrop-blur-xl">
         <h1 className="text-lg font-bold text-zinc-100 uppercase tracking-tight italic">Downloads</h1>
       </nav>
 

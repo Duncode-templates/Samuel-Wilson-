@@ -7,7 +7,7 @@
 
 @layer base {
   html, body {
-    @apply overflow-x-hidden bg-[#0a0a0b];
+    @apply overflow-x-hidden bg-[#171717];
     /* Safe area padding for mobile notches/indicators */
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);

@@ -27,7 +27,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onSelectComic }) => {
   if (loading) {
     return (
       <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in duration-500">
-        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 h-12 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl gap-4">
+        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 h-12 border-b border-white/5 bg-[#171717]/80 backdrop-blur-xl gap-4">
           <Skeleton className="w-full h-8 rounded-xl" />
         </nav>
         <div className="mt-12" />
@@ -61,7 +61,7 @@ const SearchView: React.FC<SearchViewProps> = ({ onSelectComic }) => {
   return (
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Custom Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 h-12 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl gap-4">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 h-12 border-b border-white/5 bg-[#171717]/80 backdrop-blur-xl gap-4">
         <div className="relative flex-1">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
           <input

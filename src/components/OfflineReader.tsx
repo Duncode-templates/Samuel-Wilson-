@@ -46,13 +46,13 @@ export default function OfflineReader({ chapter, comicTitle, onClose }: OfflineR
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] bg-[#171717] flex flex-col animate-in fade-in duration-300">
       {/* Navigation Header */}
       {!isFullScreen && (
         <motion.header 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="px-4 h-16 flex items-center justify-between border-b border-white/5 bg-black/90 backdrop-blur-xl z-50"
+          className="px-4 h-16 flex items-center justify-between border-b border-white/5 bg-[#171717]/90 backdrop-blur-xl z-50"
         >
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="p-2 -ml-2 text-zinc-400 hover:text-white">
@@ -73,7 +73,7 @@ export default function OfflineReader({ chapter, comicTitle, onClose }: OfflineR
       {/* Main Content */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-black scrollbar-hide"
+        className="flex-1 overflow-y-auto bg-[#171717] scrollbar-hide"
         onClick={() => setIsFullScreen(!isFullScreen)}
       >
         <div className="max-w-3xl mx-auto flex flex-col">
@@ -118,7 +118,7 @@ export default function OfflineReader({ chapter, comicTitle, onClose }: OfflineR
         <motion.footer
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="px-4 h-14 border-t border-white/5 bg-black/90 backdrop-blur-xl flex items-center justify-between z-50"
+          className="px-4 h-14 border-t border-white/5 bg-[#171717]/90 backdrop-blur-xl flex items-center justify-between z-50"
         >
           <div className="flex items-center gap-2">
             <BookOpen size={14} className="text-zinc-500" />

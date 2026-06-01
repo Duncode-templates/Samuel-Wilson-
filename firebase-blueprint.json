@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "Comment": {
+      "title": "Comment",
+      "description": "User comments on novel chapters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "novelId": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "object", "description": "Firestore ServerTimestamp" },
+        "parentId": { "type": "string" },
+        "rootId": { "type": "string" },
+        "level": { "type": "integer" },
+        "likes": { "type": "integer" },
+        "dislikes": { "type": "integer" }
+      },
+      "required": ["chapterId", "novelId", "userId", "username", "content", "timestamp", "level"]
+    }
+  },
+  "firestore": {
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Collection of comments for all chapters"
+    }
+  }
+}

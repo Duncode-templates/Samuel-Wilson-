@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Home, Download, Clock, User } from 'lucide-react';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 import { Comic, Chapter } from './types';
-import { getDownloads } from './lib/storage';
+import { getDownloads, getAllProgress } from './lib/storage';
 import { useDownloadStatus } from './hooks/useDownloadStatus';
+import { downloadManager } from './lib/downloadManager';
 import ComicReader from './components/ComicReader';
 import ExploreView from './views/ExploreView';
 import SearchView from './views/SearchView';
@@ -19,6 +22,61 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('Explore');
 
   const { downloadedIds } = useDownloadStatus();
+
+  // New Chapter Detection Logic
+  useEffect(() => {
+    const checkUpdates = async () => {
+       const progress = getAllProgress();
+       if (progress.length === 0) return;
+
+       // Filter comics that are active (read more than 1 chapter or recently)
+       const activeComics = progress.filter(p => p.lastReadAt > Date.now() - (7 * 24 * 60 * 60 *1000));
+
+       for (const p of activeComics) {
+          try {
+             // Query for the absolute latest chapter of this novel
+             const q = query(
+               collection(db, 'chapters'),
+               where('novel_id', '==', p.comicId)
+             );
+             const snapshot = await getDocs(q);
+             if (!snapshot.empty) {
+                const chapters = snapshot.docs.map(d => ({ ...d.data(), id: d.id }) as Chapter);
+                const latestChapter = chapters.reduce((prev, current) => 
+                  (prev.chapter_number > current.chapter_number) ? prev : current
+                );
+                
+                // If latest chapter number is higher than our last read index
+                if (latestChapter.chapter_number > (p.lastChapterIndex + 1)) {
+                   const lastNotified = localStorage.getItem(`notified_${p.comicId}`);
+                   if (lastNotified !== latestChapter.id) {
+                      // Fetch comic title to show in notification
+                      let comicTitle = 'A novel you read';
+                      try {
+                        const { getDoc, doc } = await import('firebase/firestore');
+                        const comicSnap = await getDoc(doc(db, 'novels', p.comicId));
+                        if (comicSnap.exists()) {
+                          comicTitle = comicSnap.data().title;
+                        }
+                      } catch (err) {
+                        console.log('Could not fetch comic title for notification');
+                      }
+
+                      downloadManager.sendNewChapterNotification(comicTitle, latestChapter.chapter_number, p.comicId);
+                      localStorage.setItem(`notified_${p.comicId}`, latestChapter.id);
+                   }
+                }
+             }
+          } catch (e) {
+             console.error('Update check failed', e);
+          }
+       }
+    };
+
+    // Delay the check to not block startup
+    const timer = setTimeout(checkUpdates, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Page switching logic
   const renderContent = () => {
@@ -36,7 +94,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0a0a0b] text-zinc-100 font-sans selection:bg-blue-600/30">
+    <div className="flex flex-col min-h-screen bg-[#171717] text-zinc-100 font-sans selection:bg-blue-600/30">
       {/* Sidebar/Navbar Hybrid */}
       <main className="flex-1 pb-24 md:pb-16 px-4 md:px-6 max-w-7xl mx-auto w-full">
         <AnimatePresence mode="wait">
@@ -69,7 +127,7 @@ export default function App() {
           >
             <div className="relative">
               <item.icon size={20} strokeWidth={2} />
-              {item.badge && (
+              {item.badge !== undefined && item.badge > 0 && (
                 <div className="absolute -top-1 -right-1.5 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center border-2 border-black">
                   <span className="text-[8px] font-black text-white">{item.badge}</span>
                 </div>

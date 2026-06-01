@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Comic } from '../types';
+import { getDisplayGenre } from '../utils';
 
 interface ComicCardProps {
   comic: Comic;
@@ -27,7 +28,7 @@ export const ComicCard: React.FC<ComicCardProps> = ({ comic, onClick }) => {
         </div>
         <div className="flex flex-col gap-1 px-0.5">
           <span className="text-[8px] md:text-[10px] font-bold tracking-wider text-blue-500 uppercase">
-            {comic.genres?.[0] || 'Novel'}
+            {getDisplayGenre(comic)}
           </span>
           <h3 className="text-[11px] md:text-sm font-bold text-zinc-100 line-clamp-1 md:line-clamp-2 leading-tight group-hover:text-blue-400 transition-colors">
             {comic.title}

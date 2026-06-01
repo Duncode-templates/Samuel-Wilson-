@@ -95,10 +95,10 @@ const NovelDetailView: React.FC<NovelDetailViewProps> = ({ comic, onBack, onRead
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-[#0a0a0b] overflow-y-auto"
+      className="fixed inset-0 z-50 bg-[#171717] overflow-y-auto"
     >
       {/* Navigation Header */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-12 bg-[#0a0a0b] border-b border-white/[0.05]">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-12 bg-[#171717] border-b border-white/[0.05]">
         <button 
           onClick={onBack}
           className="w-10 h-10 flex items-center justify-center text-white"
@@ -147,7 +147,7 @@ const NovelDetailView: React.FC<NovelDetailViewProps> = ({ comic, onBack, onRead
         </div>
 
         {/* Tabs */}
-        <div className="sticky top-12 bg-[#0a0a0b] z-40 border-b border-white/[0.05] mb-6">
+        <div className="sticky top-12 bg-[#171717] z-40 border-b border-white/[0.05] mb-6">
           <div className="flex items-center">
             <button 
               onClick={() => setActiveTab('preview')}

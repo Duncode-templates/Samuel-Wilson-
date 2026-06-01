@@ -1,6 +1,7 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Network } from '@capacitor/network';
 import { Chapter } from '../types';
-import { saveDownload, isDownloaded } from './storage';
+import { saveDownload, isDownloaded, getSetting } from './storage';
 
 export interface DownloadTask {
   chapter: Chapter;
@@ -23,17 +24,23 @@ class DownloadManager {
 
   private async initNotifications() {
     try {
+      if (!(typeof window !== 'undefined' && 'Notification' in window)) {
+        return;
+      }
+      
       const permission = await LocalNotifications.checkPermissions();
       if (permission.display !== 'granted') {
         await LocalNotifications.requestPermissions();
       }
     } catch (e) {
-      console.error('LocalNotifications not available', e);
+      // Quietly log or ignore if not supported in this environment
+      console.warn('LocalNotifications plugin init failed or not supported:', e);
     }
   }
 
   private async sendLocalNotification(title: string, body: string) {
     try {
+      // Try local notifications first (works on native)
       await LocalNotifications.schedule({
         notifications: [
           {
@@ -47,10 +54,16 @@ class DownloadManager {
           }
         ]
       });
-    } catch (e) {
-      // Fallback to web notification if on web and granted
+    } catch (e: any) {
+      // If plugin fails or says unavailable, fallback to web browser notifications
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, { body });
+        try {
+          new Notification(title, { body });
+        } catch (webErr) {
+          console.error('Web Notification failed', webErr);
+        }
+      } else {
+        console.log('Notifications not available in this context');
       }
     }
   }
@@ -132,6 +145,24 @@ class DownloadManager {
   }
 
   private async downloadChapter(task: DownloadTask) {
+    // Check WiFi Setting
+    const wifiOnly = await getSetting('download_wifi_only', true);
+    if (wifiOnly) {
+      try {
+        const { connectionType } = await Network.getStatus();
+        if (connectionType !== 'wifi' && connectionType !== 'unknown') {
+          // connectionType can be 'wifi', 'cellular', 'none', 'unknown'
+          // unknown often means desktop/wired which we should allow
+          task.status = 'paused';
+          task.error = 'Waiting for WiFi';
+          this.notify();
+          return;
+        }
+      } catch (e) {
+        console.error('Network plugin failed', e);
+      }
+    }
+
     task.status = 'downloading';
     this.notify();
 
@@ -188,6 +219,30 @@ class DownloadManager {
       task.error = error.message;
       this.notify();
     }
+  }
+
+  public async sendNewChapterNotification(comicTitle: string, chapterNumber: number, comicId?: string) {
+     const title = 'New Chapter!';
+     const body = `Chapter ${chapterNumber} of ${comicTitle} is now available.`;
+     
+     await this.sendLocalNotification(title, body);
+     
+     // Persist to IDB for the app's notification center
+     try {
+       const { addNotification } = await import('./storage');
+       await addNotification({
+         id: `${comicId || 'novel'}-${chapterNumber}-${Date.now()}`,
+         title,
+         body,
+         time: Date.now(),
+         unread: true,
+         type: 'new_chapter',
+         comicId,
+         chapterNumber
+       });
+     } catch (e) {
+       console.error('Failed to persist notification', e);
+     }
   }
 }
 

@@ -1,10 +1,13 @@
-import React, { useMemo } from 'react';
-import { Star, Clock, Zap, RefreshCw, Users, Layers, CheckCircle2, TrendingUp, ChevronRight, Maximize2 } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Star, Clock, Zap, RefreshCw, Users, Layers, CheckCircle2, TrendingUp, ChevronRight, Maximize2, User as UserIcon } from 'lucide-react';
 import { useComics } from '../hooks/useComics';
 import { Comic } from '../types';
+import { getDisplayGenre, getAvatarColor } from '../utils';
 import ComicCard from '../components/ComicCard';
-import { getActivityCounts, getAllProgress, trackActivity } from '../lib/storage';
+import { getActivityCounts, getAllProgress, trackActivity, getSetting } from '../lib/storage';
 import Skeleton from '../components/Skeleton';
+import { auth } from '../firebase';
+import { User } from 'firebase/auth';
 
 interface ExploreViewProps {
   onSelectComic: (comic: Comic) => void;
@@ -13,6 +16,18 @@ interface ExploreViewProps {
 const ExploreView: React.FC<ExploreViewProps> = ({ onSelectComic }) => {
   const { comics, loading } = useComics();
   const [selectedGenre, setSelectedGenre] = React.useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [guestUsername, setGuestUsername] = useState('Guest');
+
+  useEffect(() => {
+    const unsubAuth = auth.onAuthStateChanged(setUser);
+    const loadGuest = async () => {
+      const name = await getSetting('username', 'Guest');
+      setGuestUsername(name);
+    };
+    loadGuest();
+    return unsubAuth;
+  }, []);
 
   const analytics = useMemo(() => getActivityCounts(7), [loading]);
   const progress = useMemo(() => getAllProgress(), [loading]);
@@ -25,12 +40,40 @@ const ExploreView: React.FC<ExploreViewProps> = ({ onSelectComic }) => {
   const GENRES = useMemo(() => {
     const allGenres = new Set<string>();
     allGenres.add('All');
+    
+    // Base genres
+    const knownGenres = new Set<string>();
     comics.forEach(comic => {
+      if (Array.isArray(comic.genres)) {
+        comic.genres.forEach(genre => knownGenres.add(genre));
+      }
+    });
+
+    comics.forEach(comic => {
+      // Add existing genres
       if (Array.isArray(comic.genres)) {
         comic.genres.forEach(genre => allGenres.add(genre));
       }
+      
+      // Look for known genres in description
+      if (comic.description) {
+        const desc = comic.description.toLowerCase();
+        knownGenres.forEach(genre => {
+          if (desc.includes(genre.toLowerCase())) {
+            allGenres.add(genre);
+          }
+        });
+      }
     });
-    return Array.from(allGenres);
+
+    const genreList = Array.from(allGenres).filter(g => g !== 'All');
+    // Randomize
+    for (let i = genreList.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [genreList[i], genreList[j]] = [genreList[j], genreList[i]];
+    }
+    
+    return ['All', ...genreList];
   }, [comics]);
 
   // Section Logic
@@ -107,7 +150,7 @@ const ExploreView: React.FC<ExploreViewProps> = ({ onSelectComic }) => {
   if (loading) {
     return (
       <div className="animate-in fade-in duration-700">
-        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-12 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl">
+        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-12 border-b border-white/5 bg-[#171717]/80 backdrop-blur-xl">
           <Skeleton className="w-24 h-5" />
           <Skeleton className="w-8 h-8 rounded-full" />
         </nav>
@@ -242,7 +285,7 @@ const ExploreView: React.FC<ExploreViewProps> = ({ onSelectComic }) => {
         )}
 
         {layout === 'grid' && (
-          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6">
+          <div className={`grid ${title === 'Top picks for you' ? 'grid-cols-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8' : 'grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'} gap-2 md:gap-6`}>
             {filteredComics.map((comic) => (
               <ComicCard
                 key={comic.id}
@@ -283,7 +326,7 @@ const ExploreView: React.FC<ExploreViewProps> = ({ onSelectComic }) => {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{Array.isArray(comic.genres) ? comic.genres[0] : 'Novel'}</span>
+                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{getDisplayGenre(comic)}</span>
                     <h3 className="text-sm font-bold truncate group-hover:text-blue-400 transition-colors uppercase italic tracking-tighter">{comic.title}</h3>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -305,23 +348,28 @@ const ExploreView: React.FC<ExploreViewProps> = ({ onSelectComic }) => {
   return (
     <div className="animate-in fade-in duration-700">
       {/* Custom Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-12 border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-12 border-b border-white/5 bg-[#171717]/80 backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center font-bold text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] text-xs italic">C</div>
           <span className="text-base font-black italic tracking-tighter uppercase">Explore</span>
         </div>
-        <button 
-          onClick={() => {
-            if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen().catch(() => {});
-            } else {
-              document.exitFullscreen().catch(() => {});
-            }
-          }}
-          className="p-2 text-zinc-500 hover:text-white transition-colors"
-        >
-          <Maximize2 size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center border border-white/10 text-white font-black text-xs ${getAvatarColor(guestUsername)}`}>
+            {guestUsername.charAt(0).toUpperCase()}
+          </div>
+          <button 
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              } else {
+                document.exitFullscreen().catch(() => {});
+              }
+            }}
+            className="p-2 text-zinc-500 hover:text-white transition-colors"
+          >
+            <Maximize2 size={18} />
+          </button>
+        </div>
       </nav>
 
       <div className="mt-12">

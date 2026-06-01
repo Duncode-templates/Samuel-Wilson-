@@ -5,7 +5,7 @@ import { Comic, Chapter } from '../types';
 const PROGRESS_KEY = 'novel_reader_progress';
 const ANALYTICS_KEY = 'novel_reader_analytics';
 const DB_NAME = 'novel_reader_db';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 interface ReaderDB extends DBSchema {
   downloads: {
@@ -21,6 +21,28 @@ interface ReaderDB extends DBSchema {
       updatedAt: number;
     };
   };
+  settings: {
+    key: string;
+    value: {
+      key: string;
+      value: any;
+    };
+  };
+  notifications: {
+    key: string;
+    value: AppNotification;
+  };
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  time: number;
+  unread: boolean;
+  type: 'new_chapter';
+  comicId?: string;
+  chapterNumber?: number;
 }
 
 export interface DownloadedChapter {
@@ -45,6 +67,12 @@ const getDB = () => {
         if (oldVersion < 2) {
           db.createObjectStore('metadata', { keyPath: 'key' });
         }
+        if (oldVersion < 3) {
+          db.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (oldVersion < 4) {
+          db.createObjectStore('notifications', { keyPath: 'id' });
+        }
       },
     });
   }
@@ -66,6 +94,54 @@ export const getCache = async (key: string) => {
   const cached = await db.get('metadata', key);
   if (!cached) return null;
   return cached.data;
+};
+
+// Settings persistence
+export const setSetting = async (key: string, value: any) => {
+  const db = await getDB();
+  await db.put('settings', { key, value });
+};
+
+export const getSetting = async (key: string, defaultValue: any) => {
+  const db = await getDB();
+  const setting = await db.get('settings', key);
+  return setting ? setting.value : defaultValue;
+};
+
+// Notifications persistence
+export const addNotification = async (notif: AppNotification) => {
+  const db = await getDB();
+  await db.put('notifications', notif);
+};
+
+export const getNotifications = async (): Promise<AppNotification[]> => {
+  const db = await getDB();
+  const all = await db.getAll('notifications');
+  return all.sort((a, b) => b.time - a.time);
+};
+
+export const markNotificationAsRead = async (id: string) => {
+  const db = await getDB();
+  const notif = await db.get('notifications', id);
+  if (notif) {
+    notif.unread = false;
+    await db.put('notifications', notif);
+  }
+};
+
+export const getUnreadNotificationCount = async (): Promise<number> => {
+  const db = await getDB();
+  const all = await db.getAll('notifications');
+  return all.filter(n => n.unread).length;
+};
+
+// Clear total application cache
+export const clearAppCache = async () => {
+  const db = await getDB();
+  await db.clear('metadata');
+  await db.clear('notifications');
+  localStorage.removeItem(PROGRESS_KEY);
+  localStorage.removeItem(ANALYTICS_KEY);
 };
 
 // We'll use a composite key internally but keep the public API clean
