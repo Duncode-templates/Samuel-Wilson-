@@ -13,6 +13,7 @@ import SearchView from './views/SearchView';
 import DownloadsView from './views/DownloadsView';
 import ProfileView from './views/ProfileView';
 import NovelDetailView from './views/NovelDetailView';
+import GlobalDownloadProgress from './components/GlobalDownloadProgress';
 
 export default function App() {
   const [selectedComic, setSelectedComic] = useState<Comic | null>(null);
@@ -166,6 +167,8 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      <GlobalDownloadProgress />
     </div>
   );
 }
