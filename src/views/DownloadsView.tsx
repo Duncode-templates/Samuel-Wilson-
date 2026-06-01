@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronRight, Download, CheckCircle2, Trash2, Loader2, Search, Pause, RotateCcw, XCircle } from 'lucide-react';
+import { ChevronRight, Download, CheckCircle2, Trash2, Loader2, Search, Pause, RotateCcw, XCircle, AlertCircle } from 'lucide-react';
 import { useComics } from '../hooks/useComics';
 import { Comic, Chapter } from '../types';
 import { useChapters } from '../hooks/useChapters';
@@ -28,7 +28,12 @@ const ComicChaptersList: React.FC<{
 
   const handleDownload = (chapter: Chapter) => {
     if (downloadedIds.has(chapter.id)) return;
-    downloadManager.addToQueue(comic.id, comic.title, [chapter]);
+    const task = activeTasks.find(t => t.chapter.id === chapter.id);
+    if (task?.status === 'error') {
+      downloadManager.retryTask(chapter.id);
+    } else {
+      downloadManager.addToQueue(comic.id, comic.title, [chapter]);
+    }
   };
 
   const handleDownloadAll = () => {
@@ -77,26 +82,18 @@ const ComicChaptersList: React.FC<{
       </nav>
 
       <div className="mt-14 p-4">
-        {activeTasks.length > 0 && (
-          <div className="bg-zinc-900/40 rounded-xl p-4 border border-white/5 mb-6 space-y-3">
-             <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Queue Status</span>
-                <div className="flex gap-2">
-                   <button onClick={() => downloadManager.pauseAll()}><Pause size={14} className="text-zinc-500" /></button>
-                   <button onClick={() => downloadManager.resumeAll()}><RotateCcw size={14} className="text-zinc-500" /></button>
-                </div>
+        {activeTasks.some(t => t.status === 'error') && (
+          <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/20 mb-6 flex items-center justify-between">
+             <div className="flex items-center gap-3">
+                <AlertCircle className="text-red-500" size={18} />
+                <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Some downloads failed</span>
              </div>
-             {activeTasks.slice(0, 1).map(t => (
-               <div key={t.chapter.id} className="space-y-1.5">
-                  <div className="flex justify-between text-[9px] font-bold text-zinc-400">
-                    <span>Downloading Ep {t.chapter.chapter_number}</span>
-                    <span>{t.progress}%</span>
-                  </div>
-                  <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${t.progress}%` }} />
-                  </div>
-               </div>
-             ))}
+             <button
+               onClick={() => activeTasks.forEach(t => t.status === 'error' && downloadManager.retryTask(t.chapter.id))}
+               className="px-3 py-1 bg-red-500 rounded-lg text-[10px] font-black uppercase text-white active:scale-95 transition-all"
+             >
+               Retry All
+             </button>
           </div>
         )}
 
@@ -145,12 +142,16 @@ const ComicChaptersList: React.FC<{
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-all backdrop-blur-md shadow-xl ${
                           downloaded 
                             ? 'text-emerald-500 bg-black/40' 
-                            : task 
-                              ? 'text-blue-500 bg-black/60 scale-110' 
-                              : 'text-white bg-black/40 hover:bg-blue-500 transition-colors'
+                            : task?.status === 'error'
+                              ? 'text-red-500 bg-black/60 scale-110'
+                              : task
+                                ? 'text-blue-500 bg-black/60 scale-110'
+                                : 'text-white bg-black/40 hover:bg-blue-500 transition-colors'
                         }`}
                       >
-                        {task ? (
+                        {task?.status === 'error' ? (
+                          <AlertCircle size={14} />
+                        ) : task ? (
                           <Loader2 size={14} className="animate-spin" />
                         ) : downloaded ? (
                           <CheckCircle2 size={14} />
@@ -183,9 +184,9 @@ const ComicChaptersList: React.FC<{
 
                   <div onClick={() => handleChapterClick(ch)} className="px-0.5 text-center">
                     <h4 className={`text-[10px] font-black tracking-tighter uppercase italic leading-tight transition-colors ${
-                      isRead ? 'text-zinc-600' : downloaded ? 'text-zinc-400' : 'text-blue-500'
+                      isRead ? 'text-zinc-600' : downloaded ? 'text-zinc-400' : task?.status === 'error' ? 'text-red-500' : 'text-blue-500'
                     }`}>
-                      {task ? `Loading...` : isRead ? `CH ${ch.chapter_number}` : downloaded ? `CH ${ch.chapter_number}` : 'Download'}
+                      {task?.status === 'error' ? 'Failed' : task ? `Loading...` : isRead ? `CH ${ch.chapter_number}` : downloaded ? `CH ${ch.chapter_number}` : 'Download'}
                     </h4>
                   </div>
                 </div>

@@ -130,6 +130,17 @@ class DownloadManager {
     this.notify();
   }
 
+  public retryTask(chapterId: string) {
+    const task = this.queue.find(t => t.chapter.id === chapterId);
+    if (task && task.status === 'error') {
+      task.status = 'queued';
+      task.error = undefined;
+      task.progress = 0;
+      this.notify();
+      this.processQueue();
+    }
+  }
+
   private async processQueue() {
     if (this.isProcessing) return;
     this.isProcessing = true;

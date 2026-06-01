@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
   ChevronLeft, Play, Download, CheckCircle2, Loader2, ArrowRight, 
-  Pause, RotateCcw, Trash2, XCircle, CheckSquare, Square
+  Pause, RotateCcw, Trash2, XCircle, CheckSquare, Square, AlertCircle
 } from 'lucide-react';
 import { Comic, Chapter } from '../types';
 import { useChapters } from '../hooks/useChapters';
@@ -33,7 +33,12 @@ const NovelDetailView: React.FC<NovelDetailViewProps> = ({ comic, onBack, onRead
 
   const handleDownload = (chapter: Chapter) => {
     if (downloadedIds.has(chapter.id)) return;
-    downloadManager.addToQueue(comic.id, comic.title, [chapter]);
+    const task = activeTasks.find(t => t.chapter.id === chapter.id);
+    if (task?.status === 'error') {
+      downloadManager.retryTask(chapter.id);
+    } else {
+      downloadManager.addToQueue(comic.id, comic.title, [chapter]);
+    }
   };
 
   const toggleSelection = (chapterId: string) => {
@@ -408,8 +413,8 @@ const NovelDetailView: React.FC<NovelDetailViewProps> = ({ comic, onBack, onRead
                         )}
                         <div>
                           <p className="text-sm font-bold text-white leading-none mb-1">Episode {ch.chapter_number}</p>
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight">
-                            {task ? `Downloading... ${task.progress}%` : downloaded ? 'Downloaded' : `${ch.total_pages} Pages`}
+                          <p className={`text-[10px] font-bold uppercase tracking-tight ${task?.status === 'error' ? 'text-red-500' : 'text-zinc-500'}`}>
+                            {task?.status === 'error' ? 'Download Failed' : task ? `Downloading... ${task.progress}%` : downloaded ? 'Downloaded' : `${ch.total_pages} Pages`}
                           </p>
                         </div>
                       </div>
@@ -424,12 +429,16 @@ const NovelDetailView: React.FC<NovelDetailViewProps> = ({ comic, onBack, onRead
                           className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                             downloaded 
                               ? 'text-emerald-500 bg-emerald-500/5' 
-                              : task 
-                                ? 'text-blue-500 bg-blue-500/5' 
-                                : 'text-zinc-600 bg-zinc-800 hover:text-white hover:bg-zinc-700'
+                              : task?.status === 'error'
+                                ? 'text-red-500 bg-red-500/5'
+                                : task
+                                  ? 'text-blue-500 bg-blue-500/5'
+                                  : 'text-zinc-600 bg-zinc-800 hover:text-white hover:bg-zinc-700'
                           }`}
                         >
-                          {task ? (
+                          {task?.status === 'error' ? (
+                            <AlertCircle size={18} />
+                          ) : task ? (
                             <Loader2 size={18} className="animate-spin" />
                           ) : downloaded ? (
                             <CheckCircle2 size={18} />
