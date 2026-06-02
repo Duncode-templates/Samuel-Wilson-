@@ -178,8 +178,19 @@ class DownloadManager {
     this.notify();
 
     const pages = task.chapter.pages || {};
-    const pageUrls = Object.values(pages).sort();
+    // Extract values and sort by key to ensure correct order
+    const pageUrls = Object.keys(pages)
+      .sort((a, b) => parseInt(a) - parseInt(b))
+      .map(key => pages[key]);
+
     const totalPages = pageUrls.length;
+
+    if (totalPages === 0) {
+      task.status = 'error';
+      task.error = 'No pages found in chapter';
+      this.notify();
+      return;
+    }
     let loadedPages = 0;
 
     try {
@@ -187,8 +198,19 @@ class DownloadManager {
         pageUrls.map(async (url) => {
           if (task.status === 'paused') throw new Error('Paused');
           
-          const response = await fetch(url as string);
-          if (!response.ok) throw new Error('Failed to fetch');
+          let response;
+          try {
+            response = await fetch(url as string);
+          } catch (e) {
+            console.error('Fetch failed for URL:', url, e);
+            throw new Error(`Connection failed for page`);
+          }
+
+          if (!response.ok) {
+             console.error('Non-ok response for URL:', url, response.status);
+             throw new Error(`Server error (${response.status})`);
+          }
+
           const blob = await response.blob();
           
           // Convert to base64 for storage (or stick to Blob if using IDB properly, 
