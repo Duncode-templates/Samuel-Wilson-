@@ -29,10 +29,7 @@ export const useComics = () => {
       const comicData: Comic[] = [];
       snapshot.forEach((doc) => {
         const data = { id: doc.id, ...doc.data() } as Comic;
-        // The user filtering "completed" might be business logic, keeping it
-        if (data.status === 'completed') {
-          comicData.push(data);
-        }
+        comicData.push(data);
       });
       
       setComics(comicData);
