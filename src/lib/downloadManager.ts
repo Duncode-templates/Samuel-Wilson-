@@ -1,5 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Network } from '@capacitor/network';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Chapter } from '../types';
 import { saveDownload, isDownloaded, getSetting } from './storage';
 
@@ -198,20 +199,45 @@ class DownloadManager {
         pageUrls.map(async (url) => {
           if (task.status === 'paused') throw new Error('Paused');
           
-          let response;
+          let blob: Blob;
           try {
-            response = await fetch(url as string);
+            // Standardize headers for "streaming" or CDN links (AsuraScans etc.)
+            const headers = {
+              'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+              'Referer': 'https://asuracomic.net/',
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+            };
+
+            if (Capacitor.isNativePlatform()) {
+              // Use CapacitorHttp on native to bypass CORS and set restricted headers
+              const options = {
+                url: url as string,
+                headers,
+                responseType: 'blob' as const
+              };
+              const response = await CapacitorHttp.get(options);
+              if (response.status !== 200) {
+                 throw new Error(`Server error (${response.status})`);
+              }
+              // CapacitorHttp returns the blob data in 'data' field when responseType is blob
+              // but we need to convert it to a real Blob object
+              const base64 = response.data;
+              const response_blob = await fetch(`data:${response.headers['Content-Type'] || 'image/jpeg'};base64,${base64}`);
+              blob = await response_blob.blob();
+            } else {
+              // Web fallback (subject to CORS)
+              const response = await fetch(url as string, {
+                headers,
+                mode: 'cors',
+                credentials: 'omit'
+              });
+              if (!response.ok) throw new Error(`Server error (${response.status})`);
+              blob = await response.blob();
+            }
           } catch (e) {
-            console.error('Fetch failed for URL:', url, e);
+            console.error('Download failed for URL:', url, e);
             throw new Error(`Connection failed for page`);
           }
-
-          if (!response.ok) {
-             console.error('Non-ok response for URL:', url, response.status);
-             throw new Error(`Server error (${response.status})`);
-          }
-
-          const blob = await response.blob();
           
           // Convert to base64 for storage (or stick to Blob if using IDB properly, 
           // but base64 is safer for cross-browser storage serialization in some cases)
